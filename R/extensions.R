@@ -479,5 +479,14 @@ get_artist_tracks <- function(artist = NULL,
             artist_id = artist_id
         )
 
+    # add information from the album df
+    album_tracks <- album_tracks %>%
+        dplyr::left_join(
+            artist_albums %>%
+                dplyr::rename(album_id = id) %>%
+                dplyr::select(album_id, images, release_date, release_date_precision),
+            by = "album_id"
+        )
+
     return(album_tracks)
 }
