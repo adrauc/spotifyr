@@ -483,7 +483,7 @@ get_artist_tracks <- function(artist = NULL,
     album_tracks <- album_tracks %>%
         dplyr::left_join(
             artist_albums %>%
-                dplyr::select(images, release_date, release_date_precision),
+                dplyr::select(album_id, images, release_date, release_date_precision),
             by = "album_id"
         )
 
