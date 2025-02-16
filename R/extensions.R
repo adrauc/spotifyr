@@ -332,3 +332,152 @@ get_playlist_audio_features <- function(username,
 
     playlist_audio_features
 }
+
+#' Get Tracks For Artists' Discography
+#'
+#' Retrieve track information for all or part of an artist's discography.
+#'
+#' @param artist Required. String of either an artist name or an artist Spotify ID.
+#' If an artist name is provided, \code{search_spotify()} will be used to find a Spotify ID
+#' matching the name provided.
+#' @param include_groups Optional. A character vector of keywords that will be used to filter
+#'  the response. Defaults to \code{"album"}.
+#'  Valid values are: \cr
+#' \code{"album"} \cr
+#' \code{"single"} \cr
+#' \code{"appears_on"} \cr
+#' \code{"compilation"} \cr
+#' For example: \code{include_groups = c("album", "single")}.
+#' @param market Optional. \cr
+#' An ISO 3166-1 alpha-2 country code or the string \code{"from_token"}. \cr
+#' Supply this parameter to limit the response to one particular geographical market.
+#' For example, for albums available in Sweden: \code{market = "SE"}. \cr
+#' If not given, results will be returned for all markets and you are likely to get duplicate results per album, one for each market in which the album is available!
+#' @param return_closest_artist Optional. Boolean.
+#' @param dedupe_albums Optional. Logical, boolean parameter, defaults to
+#' \code{TRUE}.
+#' @param authorization Required. A valid access token from the Spotify Accounts service.
+#' See the
+#' \href{https://developer.spotify.com/documentation/general/guides/authorization-guide/}{Web API authorization Guide} for more details.
+#' Defaults to \code{spotifyr::get_spotify_access_token()}.
+#' @return
+#' Returns a data frame of results containing track information data.
+#' @family musicology functions
+#' @importFrom rlang .data
+#' @export
+
+get_artist_tracks <- function(artist = NULL,
+                              include_groups = 'album',
+                              return_closest_artist = TRUE,
+                              dedupe_albums = TRUE,
+                              market = NULL,
+                              authorization = get_spotify_access_token()
+) {
+
+    artist_id <- NULL
+
+    if (is_uri(artist)) {
+        artist_info <- get_artist(artist, authorization = authorization)
+        artist_id <- artist_info$id
+        artist_name <- artist_info$name
+    } else {
+        # Try to find an artist with this ID
+        artist_ids <- search_spotify(artist, 'artist', authorization = authorization)
+
+        if (return_closest_artist) {
+            artist_id <- artist_ids$id[1]
+            artist_name <- artist_ids$name[1]
+        } else {
+            choices <- purrr::map_chr(1:length(artist_ids$name), function(x) {
+                stringr::str_glue('[{x}] {artist_ids$name[x]}')
+            }) %>% paste0(collapse = '\n\t')
+            cat(stringr::str_glue('We found the following artists on Spotify matching "{artist}":\n\n\t{choices}\n\nPlease type the number corresponding to the artist you\'re interested in.'), sep = '')
+            selection <- as.numeric(readline())
+            artist_id <- artist_ids$id[selection]
+            artist_name <- artist_ids$name[selection]
+        }
+    }
+
+    if (is.null(artist_id)) {
+        stop("No artist found with artist_id='", artist_id, "'.")
+    }
+
+    artist_albums <- get_artist_albums(id = artist_id,
+                                       include_groups = include_groups,
+                                       include_meta_info = TRUE,
+                                       market = market,
+                                       authorization = authorization)
+
+    if (is.null(artist_albums$items) | length(artist_albums$items) == 0) {
+        stop("No albums found with artist_id='", artist_id, "'.")
+    }
+
+    num_loops_artist_albums <- ceiling(artist_albums$total / 20)
+
+    if (num_loops_artist_albums > 1) {
+        artist_albums <- purrr::map_df(1:num_loops_artist_albums, function(this_loop) {
+            get_artist_albums(artist_id,
+                              include_groups = include_groups,
+                              offset = (this_loop - 1) * 20,
+                              authorization = authorization)
+        })
+    } else {
+        artist_albums <- artist_albums$items
+    }
+
+    artist_albums <- artist_albums %>%
+        dplyr::rename(
+            album_id = .data$id,
+            album_name = .data$name
+        ) %>%
+        dplyr::mutate(
+            album_release_year = dplyr::case_when(
+                release_date_precision == 'year' ~ suppressWarnings(as.numeric(.data$release_date)),
+                release_date_precision == 'day' ~ lubridate::year(as.Date(.data$release_date, '%Y-%m-%d', origin = '1970-01-01')),
+                TRUE ~ as.numeric(NA)
+            )
+        )
+
+    if (dedupe_albums) {
+        artist_albums <- dedupe_album_names(df = artist_albums)
+    }
+
+    album_tracks <- purrr::map_df(artist_albums$album_id, function(this_album_id) {
+        album_tracks <- get_album_tracks(this_album_id,
+                                         include_meta_info = TRUE,
+                                         authorization = authorization)
+
+        num_loops_album_tracks <- ceiling(album_tracks$total / 20)
+        if (num_loops_album_tracks > 1) {
+            album_tracks <- purrr::map_df(1:num_loops_album_tracks, function(this_loop) {
+                get_album_tracks(this_album_id,
+                                 offset = (this_loop - 1) * 20,
+                                 authorization = authorization)
+            })
+        } else {
+            album_tracks <- album_tracks$items
+        }
+
+        album_tracks <- album_tracks %>%
+            dplyr::mutate(
+                album_id = this_album_id,
+                album_name = artist_albums$album_name[artist_albums$album_id == this_album_id]
+            ) %>%
+            dplyr::rename(
+                track_name = name,
+                track_uri = uri,
+                track_href = href,
+                track_id = id
+            )
+        album_tracks
+    })
+
+    # Append artist information to each track
+    album_tracks <- album_tracks %>%
+        dplyr::mutate(
+            artist_name = artist_name,
+            artist_id = artist_id
+        )
+
+    return(album_tracks)
+}
