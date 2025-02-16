@@ -21,6 +21,7 @@ Get a detailed audio analysis for a single track identified by its unique Spotif
 \seealso{
 Other musicology functions: 
 \code{\link{get_artist_audio_features}()},
+\code{\link{get_artist_tracks}()},
 \code{\link{get_genre_artists}()},
 \code{\link{get_playlist_audio_features}()},
 \code{\link{get_track_audio_features}()},

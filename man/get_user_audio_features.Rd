@@ -26,6 +26,7 @@ Get audio feature information for a users' playlists.
 \seealso{
 Other musicology functions: 
 \code{\link{get_artist_audio_features}()},
+\code{\link{get_artist_tracks}()},
 \code{\link{get_genre_artists}()},
 \code{\link{get_playlist_audio_features}()},
 \code{\link{get_track_audio_analysis}()},

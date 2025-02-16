@@ -2,8 +2,8 @@
 % Please edit documentation in R/spotifyr.R
 \docType{package}
 \name{spotifyr}
-\alias{spotifyr-package}
 \alias{spotifyr}
+\alias{spotifyr-package}
 \title{\code{spotifyr} package}
 \description{
 A Quick and Easy Wrapper for Pulling Track Audio Features from Spotify's Web API in Bulk
@@ -99,7 +99,7 @@ Authors:
 
 Other contributors:
 \itemize{
-  \item Stephen Holsenbeck [contributor]
+  \item Stephen  Holsenbeck [contributor]
   \item Peter Harrison [contributor]
 }
 

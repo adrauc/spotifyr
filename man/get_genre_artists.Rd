@@ -55,6 +55,7 @@ get_genre_artists('wonky')
 \seealso{
 Other musicology functions: 
 \code{\link{get_artist_audio_features}()},
+\code{\link{get_artist_tracks}()},
 \code{\link{get_playlist_audio_features}()},
 \code{\link{get_track_audio_analysis}()},
 \code{\link{get_track_audio_features}()},
