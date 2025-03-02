@@ -333,6 +333,56 @@ get_playlist_audio_features <- function(username,
     playlist_audio_features
 }
 
+#' Get Features and Popularity of Playlists on Spotify
+#'
+#' This function returns the popularity and audio features for every song for a given set of
+#' playlists on Spotify
+#'
+#' @param username String of Spotify username. Can be found on the Spotify app.
+#' @param playlist_uris Character vector of Spotify playlist uris.
+#' Can be found within the Spotify App
+#' @param authorization Required. A valid access token from the Spotify Accounts service.
+#' See the \href{https://developer.spotify.com/documentation/general/guides/authorization-guide/}{Web API authorization Guide} for more details. Defaults to \code{spotifyr::get_spotify_access_token()}
+#' @keywords track audio features playlists
+#' @export
+#' @family musicology functions
+#' @return A data frame with the audio features and popularity variables of playlists.
+#' @examples
+#' \dontrun{
+#' playlist_username <- 'spotify'
+#' playlist_uris <- c('37i9dQZF1E9T1oFsQFg98K', '37i9dQZF1CyQNOI21QVf3p')
+#' playlist_audio_features <- get_playlist_audio_features(playlist_username, playlist_uris)
+#' }
+
+get_playlist_tracks_all <- function(playlist_uris,
+                                        authorization = get_spotify_access_token()
+) {
+
+    playlist_tracks <- purrr::map_df(playlist_uris, function(playlist_uri) {
+        this_playlist <- get_playlist(playlist_uri, authorization = authorization)
+        n_tracks <- this_playlist$tracks$total
+        num_loops <- ceiling(n_tracks / 100)
+        purrr::map_df(1:num_loops, function(this_loop) {
+            get_playlist_tracks(this_playlist$id,
+                                limit = 100,
+                                offset = (this_loop - 1) * 100,
+                                authorization = authorization) %>%
+                dplyr::mutate(
+                    playlist_id = this_playlist$id,
+                    playlist_name = this_playlist$name,
+                    playlist_img = this_playlist$images$url[[1]],
+                    playlist_owner_name = this_playlist$owner$display_name,
+                    playlist_owner_id = this_playlist$owner$id
+                )
+        })
+    })
+
+    playlist_tracks
+}
+
+
+
+
 #' Get Tracks For Artists' Discography
 #'
 #' Retrieve track information for all or part of an artist's discography.
